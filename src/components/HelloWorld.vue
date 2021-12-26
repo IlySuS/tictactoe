@@ -1,59 +1,253 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-typescript" target="_blank" rel="noopener">typescript</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div class="game-scrin">
+    <div class="game-board">
+      <div class="row" v-for="(row, rowKey) in playAreaCells" :key="rowKey">
+        <div
+          class="cell"
+          :class="{ 'selected': playAreaCells[rowKey][cellKey].selected }"
+          v-for="(cell, cellKey) in row"
+          :key="cellKey"
+          @click="onClick(rowKey, cellKey)"
+        >
+          <span
+            v-if="playAreaCells[rowKey][cellKey].selected"
+            :class="markClass(rowKey, cellKey)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-show="showEndGameBanner"
+      class="banner-container"
+    >
+      <div class="overlay" />
+
+      <div class="banner">
+        <div class="title">
+          {{ endGameMessage }}
+        </div>
+
+        <div
+          class="retry-btn"
+          @click="retry"
+        >
+          Retry
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator';
+import { Component, Vue } from 'vue-property-decorator';
+
+interface Cell {
+  selected: boolean;
+  value: null | string;
+}
 
 @Component
-export default class HelloWorld extends Vue {
-  @Prop() private msg!: string;
+export default class Playground extends Vue {
+  protected playAreaCells: Array<Array<Cell>> = [
+    [{ selected: false, value: null }, { selected: false, value: null }, { selected: false, value: null }],
+    [{ selected: false, value: null }, { selected: false, value: null }, { selected: false, value: null }],
+    [{ selected: false, value: null }, { selected: false, value: null }, { selected: false, value: null }],
+  ];
+
+  protected move = 0;
+  protected endGameMessage = '';
+  protected showEndGameBanner = false;
+
+  protected onClick(rowKey: number, cellKey: number): void {
+    const currentCell = this.playAreaCells[rowKey][cellKey];
+
+    if (currentCell.selected) return;
+
+    currentCell.selected = true;
+    currentCell.value = this.move % 2 === 0 ? 'cross' : 'zero';
+
+    if (this.checkEnd('cross')) {
+      this.$nextTick();
+      this.endGameMessage = 'Cross win!';
+      this.showEndGameBanner = true;
+      return;
+    }
+
+    if (this.checkEnd('zero')) {
+      this.$nextTick();
+      this.endGameMessage = 'Zero win!';
+      this.showEndGameBanner = true;
+      return;
+    }
+
+    if (this.checkDeadHeat()) {
+      this.$nextTick();
+      this.endGameMessage = 'Dead heat';
+      this.showEndGameBanner = true;
+      return;
+    }
+
+    this.move += 1;
+  }
+
+  protected retry(): void {
+    this.clearGameBoard();
+    this.showEndGameBanner = false;
+    this.endGameMessage = '';
+  }
+
+  protected clearGameBoard(): void {
+    this.playAreaCells.forEach((row: Array<Cell>) => {
+      row.forEach((cell: Cell) => {
+        cell.selected = false;
+        cell.value = null;
+      });
+    });
+  }
+
+  protected markClass(rowKey: number, cellKey: number): string | void {
+    const currentCell = this.playAreaCells[rowKey][cellKey];
+
+    if (currentCell.selected) {
+      return currentCell.value === 'cross' ? 'cross' : 'zero';
+    }
+
+    return '';
+  }
+
+  protected checkEnd(player: string): boolean | void {
+    const xy00 = this.playAreaCells[0][0].value;
+    const xy01 = this.playAreaCells[0][1].value;
+    const xy02 = this.playAreaCells[0][2].value;
+    const xy10 = this.playAreaCells[1][0].value;
+    const xy11 = this.playAreaCells[1][1].value;
+    const xy12 = this.playAreaCells[1][2].value;
+    const xy20 = this.playAreaCells[2][0].value;
+    const xy21 = this.playAreaCells[2][1].value;
+    const xy22 = this.playAreaCells[2][2].value;
+
+    if (xy00 === player && xy01 === player && xy02 === player) return true;
+    if (xy10 === player && xy11 === player && xy12 === player) return true;
+    if (xy20 === player && xy21 === player && xy22 === player) return true;
+    if (xy00 === player && xy10 === player && xy20 === player) return true;
+    if (xy01 === player && xy11 === player && xy21 === player) return true;
+    if (xy02 === player && xy12 === player && xy22 === player) return true;
+    if (xy00 === player && xy11 === player && xy22 === player) return true;
+    if (xy02 === player && xy11 === player && xy20 === player) return true;
+
+    return false;
+  }
+
+  protected checkDeadHeat(): boolean {
+    return this.playAreaCells.every((row: Array<Cell>) => row.every((cell: Cell) => cell.selected));
+  }
 }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
-h3 {
-  margin: 40px 0 0;
+.game-board {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  .row {
+    display: flex;
+  }
+
+  .cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 80px;
+    height: 80px;
+    background-color: #bfcbff;
+    border: 1px solid #4a5896;
+    cursor: pointer;
+    transition: .1s;
+    position: relative;
+
+    &:not(.selected):hover {
+      background-color: #e1e6ff;
+    }
+
+    span.zero {
+      height: 45px;
+      width: 45px;
+      border: 3px solid black;
+      border-radius: 50%;
+    }
+
+    span.cross {
+      position: relative;
+      height: 50px;
+      width: 50px;
+
+      &:before, &:after {
+        position: absolute;
+        content: ' ';
+        width: 2px;
+        height: 55px;
+        background-color: black;
+      }
+
+      &:before {
+        transform: rotate(45deg);
+      }
+
+      &:after {
+        transform: rotate(-45deg);
+      }
+    }
+  }
 }
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
+
+.banner-container {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100vh;
+  left: 0;
+  top: 0;
+
+  .banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+    width: 300px;
+    height: 200px;
+    background-color: white;
+    border-radius: 5px;
+    z-index: 999;
+
+    .title {
+      font-size: 24px;
+      color: lightgreen;
+    }
+
+    .retry-btn {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100px;
+      height: 50px;
+      border-radius: 5px;
+      background-color: lightskyblue;
+      cursor: pointer;
+    }
+  }
+
+  .overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    opacity: .6;
+
+  }
 }
 </style>

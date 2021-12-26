@@ -14,5 +14,10 @@ module.exports = {
   rules: {
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'lines-between-class-members': ["error", "always", {
+      "exceptAfterSingleLine": true
+    }],
+    "no-param-reassign": 0,
+    'max-len': ["error", { "code": 130 }]
   },
 };
